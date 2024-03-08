@@ -24,6 +24,9 @@ app.get('/', (req, res) => {
 });
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/friendship', require('./routes/friendshipRoutes'));
+app.use('/api', require('./routes/postRoutes'));
+app.use('/api/comment', require('./routes/commentRoutes'));
+app.use('/api/travel', require('./routes/destinationRoutes'));
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
