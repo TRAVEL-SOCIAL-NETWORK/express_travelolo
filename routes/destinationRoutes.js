@@ -5,7 +5,9 @@ const {
   createTravelDestination,
   updateTravelDestination,
   deleteTravelDestination,
+  getDestination,
 } = require('../controllers/addressController')
+const { getCity } = require('../controllers/cityController')
 const router = express.Router()
 
 router.use(auth)
@@ -13,5 +15,7 @@ router.post('/city-destinations', createCityTravelDestination)
 router.post('/destinations', createTravelDestination)
 router.put('/destinations/:id', updateTravelDestination)
 router.delete('/destinations/:id', deleteTravelDestination)
+router.get('/destinations/:city_id', getDestination)
+router.get('/city', getCity)
 
 module.exports = router

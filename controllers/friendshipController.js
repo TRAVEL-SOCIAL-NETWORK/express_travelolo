@@ -111,9 +111,136 @@ const cancelFriendship = async (req, res) => {
   }
 }
 
+const getSuggestedFriends = async (req, res) => {
+  try {
+    const userId = req.user._id
+    const user = await User.findOne({
+      _id: userId,
+    }).exec()
+    if (!user) {
+      return res.status(400).send('User not found')
+    }
+    const friends = await Friendship.find({
+      $or: [
+        {
+          user_id: userId,
+        },
+        {
+          friend_id: userId,
+        },
+      ],
+    }).exec()
+    const friendIds = friends.map((friend) => {
+      if (friend.user_id === userId) {
+        return friend.friend_id
+      }
+      return friend.user_id
+    })
+    const suggestedFriends = await User.find({
+      _id: {
+        $nin: friendIds,
+      },
+    })
+      .exec()
+      .then((users) => {
+        return users.map((user) => {
+          return {
+            _id: user._id,
+            name: `${user.first_name} ${user.last_name}`,
+            avatar: user.avatar,
+          }
+        })
+      })
+    res.send({
+      status_code: 200,
+      suggestedFriends,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
+const getRequestFriendship = async (req, res) => {
+  try {
+    const userId = req.user._id
+    const friendships = await Friendship.find({
+      friend_id: userId,
+      status: 'pending',
+    }).exec()
+    const friendIds = friendships.map((friendship) => {
+      return friendship.user_id
+    })
+    const users = await User.find({
+      _id: {
+        $in: friendIds,
+      },
+    }).exec()
+    const requests = users.map((user) => {
+      return {
+        _id: user._id,
+        name: `${user.first_name} ${user.last_name}`,
+        avatar: user.avatar,
+        time: friendships.find((friendship) => {
+          return friendship.user_id.toString() === user._id.toString()
+        }).created_at,
+      }
+    })
+    res.send({
+      status_code: 200,
+      requests,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
+const getFriendship = async (req, res) => {
+  try {
+    const userId = req.user._id
+    const friendships = await Friendship.find({
+      $or: [
+        {
+          user_id: userId,
+        },
+        {
+          friend_id: userId,
+        },
+      ],
+      status: 'accepted',
+    }).exec()
+    const friendIds = friendships.map((friendship) => {
+      if (friendship.user_id === userId) {
+        return friendship.friend_id
+      }
+      return friendship.user_id
+    })
+    const users = await User.find({
+      _id: {
+        $in: friendIds,
+      },
+    }).exec()
+    const friends = users.map((user) => {
+      return {
+        id: user._id,
+        name: `${user.first_name} ${user.last_name}`,
+        avatar: user.avatar,
+      }
+    })
+    res.send({
+      status_code: 200,
+      friends,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
 module.exports = {
   requestFriendship,
   acceptFriendship,
   rejectFriendship,
   cancelFriendship,
+  getSuggestedFriends,
+  getRequestFriendship,
+  getFriendship,
 }
