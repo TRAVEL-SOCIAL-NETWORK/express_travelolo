@@ -37,6 +37,30 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: false,
     },
+    work: {
+        type: String,
+        required: false,
+    },
+    study: {
+        type: String,
+        required: false,
+    },
+    hobby: {
+        type: String,
+        required: false,
+    },
+    location: {
+        type: String,
+        required: false,
+    },
+    birthday: {
+        type: Date,
+        required: false,
+    },
+    hometown: {
+        type: String,
+        required: false,
+    },
     created_at: {
         type: Date,
         default: Date.now,
