@@ -14,7 +14,6 @@ const login = async (req, res) => {
       return res.send({
         status_code: 204,
         message: 'Invalid email or password',
-      
       })
     }
     const isMatch = await bcrypt.compare(password, user.password)
@@ -22,21 +21,20 @@ const login = async (req, res) => {
       return res.send({
         status_code: 204,
         message: 'Invalid email or password',
-      
       })
     }
     const access_token = jwt.sign(
       { _id: user._id },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: '1h',
+        expiresIn: '5h',
       }
     )
     const refresh_token = jwt.sign(
       { _id: user._id },
       process.env.REFRESH_TOKEN_SECRET,
       {
-        expiresIn: '1d',
+        expiresIn: '7d',
       }
     )
     res.send({
@@ -49,6 +47,36 @@ const login = async (req, res) => {
       last_name: user.last_name,
       avatar: user.avatar,
       status: user.status,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
+const refreshToken = async (req, res) => {
+  try {
+    const { refresh_token } = req.body
+    if (!refresh_token) {
+      return res.status(400).send('Refresh token not found')
+    }
+    const user = tokenHandler.verifyRefreshToken(
+      refresh_token,
+      process.env.REFRESH_TOKEN_SECRET
+    )
+    if (!user) {
+      return res.status(400).send('Invalid refresh token')
+    }
+    const access_token = jwt.sign(
+      { _id: user._id },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: '5h',
+      }
+    )
+    res.send({
+      status_code: 200,
+      message: 'Token refreshed successfully',
+      access_token,
     })
   } catch (err) {
     res.status(400).send(err)
@@ -146,4 +174,10 @@ const resetPassword = async (req, res) => {
   }
 }
 
-module.exports = { login, register, forgotPassword, resetPassword }
+module.exports = {
+  login,
+  register,
+  forgotPassword,
+  resetPassword,
+  refreshToken,
+}

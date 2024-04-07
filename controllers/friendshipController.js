@@ -110,35 +110,42 @@ const cancelFriendship = async (req, res) => {
     res.status(400).send(err)
   }
 }
-
 const getSuggestedFriends = async (req, res) => {
   try {
     const userId = req.user._id
-    const user = await User.findOne({
-      _id: userId,
+
+    // Lấy danh sách bạn bè của người dùng
+    const userFriendships = await Friendship.find({
+      $or: [{ user_id: userId }, { friend_id: userId }],
     }).exec()
-    if (!user) {
-      return res.status(400).send('User not found')
-    }
-    const friends = await Friendship.find({
-      $or: [
-        {
-          user_id: userId,
-        },
-        {
-          friend_id: userId,
-        },
+
+    // Tạo mảng chứa ID của các bạn bè
+    const friendIds = userFriendships.map((friendship) => {
+      return friendship.user_id.toString() === userId.toString()
+        ? friendship.friend_id
+        : friendship.user_id
+    })
+
+    // Lấy danh sách các mối quan hệ bạn bè mà người dùng đã có
+    const existingFriendships = await Friendship.find({
+      $and: [
+        { $or: [{ user_id: userId }, { friend_id: userId }] },
+        { status: { $in: ['pending', 'accepted', 'rejected'] } },
       ],
     }).exec()
-    const friendIds = friends.map((friend) => {
-      if (friend.user_id === userId) {
-        return friend.friend_id
-      }
-      return friend.user_id
+
+    // Tạo mảng chứa ID của các mối quan hệ bạn bè đã có
+    const existingFriendIds = existingFriendships.map((friendship) => {
+      return friendship.user_id.toString() === userId.toString()
+        ? friendship.friend_id
+        : friendship.user_id
     })
+
+    // Lấy danh sách người dùng đề xuất ngoại trừ những người đã có mối quan hệ bạn bè
     const suggestedFriends = await User.find({
       _id: {
-        $nin: friendIds,
+        $nin: [...friendIds, ...existingFriendIds], // Lọc bỏ các ID đã có mối quan hệ bạn bè
+        $ne: userId, // Lọc bỏ chính người dùng hiện tại
       },
     })
       .exec()
@@ -151,6 +158,7 @@ const getSuggestedFriends = async (req, res) => {
           }
         })
       })
+
     res.send({
       status_code: 200,
       suggestedFriends,
@@ -209,10 +217,9 @@ const getFriendship = async (req, res) => {
       status: 'accepted',
     }).exec()
     const friendIds = friendships.map((friendship) => {
-      if (friendship.user_id === userId) {
-        return friendship.friend_id
-      }
-      return friendship.user_id
+      return friendship.user_id.toString() === userId.toString()
+        ? friendship.friend_id
+        : friendship.user_id
     })
     const users = await User.find({
       _id: {

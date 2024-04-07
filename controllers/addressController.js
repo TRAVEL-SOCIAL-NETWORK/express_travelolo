@@ -135,6 +135,19 @@ const getDestination = async (req, res) => {
     res.status(400).send(err)
   }
 }
+const getListDestination = async (req, res) => {
+  try {
+    const listDestinations = await Address.find({ city: req.params.city_id })
+      .select('id travel_destination')
+      .exec()
+    res.send({
+      status_code: 200,
+      destinations: listDestinations,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
 
 const reportTravelDestination = async (req, res) => {
   try {
@@ -167,4 +180,5 @@ module.exports = {
   deleteTravelDestination,
   reportTravelDestination,
   getDestination,
+  getListDestination,
 }

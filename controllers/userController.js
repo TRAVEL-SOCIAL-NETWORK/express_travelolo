@@ -2,6 +2,8 @@ const Post = require('../models/Post')
 const User = require('../models/User')
 const Friendship = require('../models/Friendship')
 const Address = require('../models/Address')
+const cloudinary = require('../configs/cloudinaryConfig')
+const fs = require('fs')
 
 const getInfo = async (req, res) => {
   try {
@@ -111,6 +113,58 @@ const updateProfile = async (req, res) => {
       return res.status(400).send('User not found')
     }
     const { work, study, hobby, location, hometown } = req.body
+    // Xử lý ảnh avatar và background nếu tồn tại
+    let avatarUrl = ''
+    let backgroundUrl = ''
+
+    // Kiểm tra nếu là avatar
+    if (req.files && req.files['avatar'] && req.files['avatar'][0]) {
+      // Lưu ảnh avatar vào Cloudinary
+      const imagePath = '../images'
+      fs.writeFileSync(imagePath, req.files['avatar'][0].buffer)
+      try {
+        const avatarResult = await cloudinary.uploader.upload(imagePath)
+        fs.unlinkSync(imagePath)
+        avatarUrl = avatarResult.secure_url
+      } catch (error) {
+        console.error('Error uploading avatar:', error)
+        return res.status(400).json({ message: 'Upload avatar failed' })
+      }
+    }
+
+    // Kiểm tra nếu là background
+    if (req.files && req.files['background'] && req.files['background'][0]) {
+      const imagePath = '../images'
+      fs.writeFileSync(imagePath, req.files['background'][0].buffer)
+      try {
+        const backgroundResult = await cloudinary.uploader.upload(imagePath)
+        fs.unlinkSync(imagePath)
+        backgroundUrl = backgroundResult.secure_url
+      } catch (error) {
+        console.error('Error uploading background:', error)
+        return res.status(400).json({ message: 'Upload background failed' })
+      }
+    }
+    if (avatarUrl === '' && backgroundUrl === '') {
+      const userUpdate = await User.findOneAndUpdate(
+        {
+          _id: userId,
+        },
+        {
+          work,
+          study,
+          hobby,
+          location,
+          hometown,
+        },
+        { new: true }
+      )
+      return res.send({
+        status_code: 200,
+        message: 'Profile updated successfully',
+        data: userUpdate,
+      })
+    }
     const userUpdate = await User.findOneAndUpdate(
       {
         _id: userId,
@@ -121,6 +175,8 @@ const updateProfile = async (req, res) => {
         hobby,
         location,
         hometown,
+        avatar: avatarUrl,
+        background: backgroundUrl,
       },
       { new: true }
     )

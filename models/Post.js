@@ -18,6 +18,12 @@ const PostSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  privacy: {
+    type: String,
+    required: true,
+    default: 'public',
+    values: ['public', 'private'],
+  },
   report: {
     type: Number,
     required: false,
