@@ -27,6 +27,7 @@ const PostSchema = new mongoose.Schema({
   report: {
     type: Number,
     required: false,
+    default: 0,
   },
   travel_destination: {
     type: mongoose.Schema.Types.ObjectId,

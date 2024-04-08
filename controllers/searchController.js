@@ -153,6 +153,7 @@ const searchPost = async (req, res) => {
           likes_count: likes_count,
           comments_count: cmt_count,
           is_liked: is_liked ? true : false,
+          privacy: post.privacy,
         }
       })
     )

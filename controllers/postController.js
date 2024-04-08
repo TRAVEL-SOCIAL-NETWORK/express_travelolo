@@ -8,8 +8,6 @@ const createPost = async (req, res) => {
   try {
     const userId = req.user._id
     const { content, destination_id, privacy } = req.body
-    console.log('Destination ID:', destination_id)
-    console.log('Content:', content)
     let imageUrl = '' // Đường dẫn của ảnh trên Cloudinary
 
     // Kiểm tra xem liệu có ảnh được gửi kèm không
@@ -28,7 +26,6 @@ const createPost = async (req, res) => {
           .send({ status_code: 400, message: 'Upload image failed' })
       }
     }
-    console.log('File:', imageUrl)
     // Tạo bài đăng và lưu vào cơ sở dữ liệu
     const post = await Post.create({
       user_id: userId,
@@ -48,19 +45,17 @@ const createPost = async (req, res) => {
   }
 }
 
-const updatePost = async (req, res) => {
+const updatePrivacyPost = async (req, res) => {
   try {
     const userId = req.user._id
-    const { content, image, destination } = req.body
+    const { privacy } = req.body
     const post = await Post.findOneAndUpdate(
       {
         user_id: userId,
-        _id: req.params.id,
+        _id: req.params.post_id,
       },
       {
-        content,
-        image,
-        travel_destination: destination,
+        privacy,
       },
       { new: true }
     )
@@ -77,12 +72,65 @@ const updatePost = async (req, res) => {
   }
 }
 
+const updateContentPost = async (req, res) => {
+  try {
+    const userId = req.user._id
+    const { content } = req.body
+    const post = await Post.findOneAndUpdate(
+      {
+        user_id: userId,
+        _id: req.params.post_id,
+      },
+      {
+        content,
+      },
+      { new: true }
+    )
+    if (!post) {
+      return res.status(400).send('Post not found')
+    }
+    res.send({
+      status_code: 200,
+      message: 'Post updated successfully',
+      data: post,
+    })
+  } catch (err) {
+    res.status
+  }
+}
+
+const reportPost = async (req, res) => {
+  try {
+    const userId = req.user._id
+    const post = await Post.findOne({
+      _id: req.params.post_id,
+    })
+    if (!post) {
+      return res.status(400).send('Post not found')
+    }
+    if (post.user_id.toString() === userId.toString()) {
+      return res.status(400).send('You cannot report your own post')
+    }
+    if (post.report === undefined) {
+      post.report = 0
+    }
+    post.report += 1
+    await post.save()
+    res.send({
+      status_code: 200,
+      message: 'Post reported successfully',
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
 const deletePost = async (req, res) => {
   try {
     const userId = req.user._id
     const post = await Post.findOneAndDelete({
       user_id: userId,
-      _id: req.params.id,
+      _id: req.params.post_id,
     })
     if (!post) {
       return res.status(400).send('Post not found')
@@ -139,6 +187,7 @@ const getPostsByUserId = async (req, res) => {
           likes_count: likes_count,
           comments_count: cmt_count,
           is_liked: is_liked ? true : false,
+          privacy: post.privacy,
         }
       })
     )
@@ -155,20 +204,37 @@ const getPostsByUser = async (req, res) => {
   try {
     const userId = req.user._id
     const page = req.query.page ? parseInt(req.query.page) : 1
-    const privacy = req.query.privacy ? req.query.privacy : 'public'
+    const privacy =
+      req.query.privacy === 'public'
+        ? 'public'
+        : req.query.privacy === 'private'
+        ? 'private'
+        : ''
     const oldest = req.query.oldest === 'true' ? 1 : -1
     const limit = 5
     const skip = (page - 1) * limit
-    const posts = await Post.find({
-      user_id: userId,
-      privacy: privacy,
-    })
-      .populate('user_id')
-      .populate('travel_destination')
-      .sort({ created_at: oldest })
-      .skip(skip)
-      .limit(limit)
-      .exec()
+    let posts
+    if (privacy === '') {
+      posts = await Post.find({
+        user_id: userId,
+      })
+        .populate('user_id')
+        .populate('travel_destination')
+        .sort({ created_at: oldest })
+        .skip(skip)
+        .limit(limit)
+        .exec()
+    } else {
+      posts = await Post.find({
+        user_id: userId,
+      })
+        .populate('user_id')
+        .populate('travel_destination')
+        .sort({ created_at: oldest })
+        .skip(skip)
+        .limit(limit)
+        .exec()
+    }
     const destination_posts = await Promise.all(
       posts.map(async (post) => {
         const likes_count = await Reaction.find({
@@ -196,6 +262,7 @@ const getPostsByUser = async (req, res) => {
           likes_count: likes_count,
           comments_count: cmt_count,
           is_liked: is_liked ? true : false,
+          privacy: post.privacy,
         }
       })
     )
@@ -251,6 +318,7 @@ const getPostsByDestinationId = async (req, res) => {
           likes_count: likes_count,
           comments_count: cmt_count,
           is_liked: is_liked ? true : false,
+          privacy: post.privacy,
         }
       })
     )
@@ -305,6 +373,7 @@ const getPosts = async (req, res) => {
           likes_count: likes_count,
           comments_count: cmt_count,
           is_liked: is_liked ? true : false,
+          privacy: post.privacy,
         }
       })
     )
@@ -319,7 +388,9 @@ const getPosts = async (req, res) => {
 
 module.exports = {
   createPost,
-  updatePost,
+  updatePrivacyPost,
+  updateContentPost,
+  reportPost,
   deletePost,
   getPostsByUserId,
   getPostsByUser,
