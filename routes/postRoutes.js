@@ -11,6 +11,7 @@ const {
   getPostsByUser,
   updatePrivacyPost,
   reportPost,
+  getPost,
 } = require('../controllers/postController')
 const router = express.Router()
 const storage = multer.memoryStorage()
@@ -26,5 +27,6 @@ router.get('/posts/user/:id', getPostsByUserId)
 router.get('/posts/user', getPostsByUser)
 router.get('/posts/destination/:id', getPostsByDestinationId)
 router.get('/posts', getPosts)
+router.get('/posts/:post_id', getPost)
 
 module.exports = router

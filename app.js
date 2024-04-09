@@ -1,10 +1,30 @@
 const express = require('express')
-const app = express()
-require('dotenv').config()
+const http = require('http')
+const socketIo = require('./configs/socket')
 const bodyParser = require('body-parser')
 const cors = require('cors')
-const port = process.env.PORT
+const dotenv = require('dotenv')
 
+// Import các route cần thiết
+const authRoutes = require('./routes/authRoutes')
+const friendshipRoutes = require('./routes/friendshipRoutes')
+const postRoutes = require('./routes/postRoutes')
+const commentRoutes = require('./routes/commentRoutes')
+const destinationRoutes = require('./routes/destinationRoutes')
+const userRoutes = require('./routes/userRoutes')
+const reactionRoutes = require('./routes/reactionRoutes')
+const searchRoutes = require('./routes/searchRoutes')
+const notifyRoutes = require('./routes/notifyRoutes')
+
+dotenv.config()
+
+const app = express()
+const server = http.createServer(app)
+const io = socketIo.init(server)
+
+const port = process.env.PORT || 3000
+
+// Kết nối đến cơ sở dữ liệu
 const connectDB = require('./configs/connectDB')
 connectDB.connectDB()
 
@@ -19,18 +39,33 @@ app.use(
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
+// WebSocket
+io.on('connection', (socket) => {
+  console.log('A user connected')
+
+  // Xử lý sự kiện khi ngắt kết nối
+  socket.on('disconnect', () => {
+    console.log('User disconnected')
+  })
+
+  // Thêm các xử lý sự kiện khác tại đây nếu cần
+})
+
+// Định tuyến cho các API
 app.get('/', (req, res) => {
   res.send('Hello, Express!')
 })
-app.use('/api/auth', require('./routes/authRoutes'))
-app.use('/api/friendship', require('./routes/friendshipRoutes'))
-app.use('/api', require('./routes/postRoutes'))
-app.use('/api', require('./routes/commentRoutes'))
-app.use('/api/travel', require('./routes/destinationRoutes'))
-app.use('/api/user', require('./routes/userRoutes'))
-app.use('/api/reaction', require('./routes/reactionRoutes'))
-app.use('/api/search', require('./routes/searchRoutes'))
+app.use('/api/auth', authRoutes)
+app.use('/api/friendship', friendshipRoutes)
+app.use('/api', postRoutes)
+app.use('/api', commentRoutes)
+app.use('/api', notifyRoutes)
+app.use('/api/travel', destinationRoutes)
+app.use('/api/user', userRoutes)
+app.use('/api/reaction', reactionRoutes)
+app.use('/api/search', searchRoutes)
 
-app.listen(port, () => {
+// Khởi động server
+server.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`)
 })

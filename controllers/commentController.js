@@ -1,4 +1,7 @@
 const Comment = require('../models/Comment')
+const io = require('../configs/socket')
+const Post = require('../models/Post')
+const Notify = require('../models/Notify')
 
 const createComment = async (req, res) => {
   try {
@@ -18,6 +21,23 @@ const createComment = async (req, res) => {
         parent_comment,
       })
       await comment.save()
+      // Gửi thông báo socket đến chủ bài viết
+      const author_post = await Post.findOne({ _id: post_id }).select('user_id')
+      if (author_post.user_id.toString() !== userId.toString()) {
+        const notify = new Notify({
+          user_id: author_post.user_id,
+          post_id,
+          user_send: userId,
+          type: 'comment',
+        })
+        await notify.save()
+
+        io.getIO(author_post.user_id).emit('newComment', {
+          postId: post_id,
+          authorPost: author_post.user_id,
+        })
+      }
+
       res.send({
         status_code: 200,
         message: 'Comment created successfully',
@@ -30,6 +50,23 @@ const createComment = async (req, res) => {
         content,
       })
       await comment.save()
+      // Gửi thông báo socket đến chủ bài viết
+      const author_post = await Post.findOne({ _id: post_id }).select('user_id')
+      if (author_post.user_id.toString() !== userId.toString()) {
+        const notify = new Notify({
+          user_id: author_post.user_id,
+          post_id,
+          user_send: userId,
+          type: 'comment',
+        })
+        await notify.save()
+
+        io.getIO(author_post.user_id).emit('newComment', {
+          postId: post_id,
+          authorPost: author_post.user_id,
+        })
+      }
+
       res.send({
         status_code: 200,
         message: 'Comment created successfully',

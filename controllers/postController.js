@@ -386,6 +386,52 @@ const getPosts = async (req, res) => {
   }
 }
 
+const getPost = async (req, res) => {
+  try {
+    const post = await Post.findOne({
+      _id: req.params.post_id,
+    })
+      .populate('user_id')
+      .populate('travel_destination')
+      .exec()
+    if (!post) {
+      return res.status(400).send('Post not found')
+    }
+    const likes_count = await Reaction.find({
+      post_id: post._id,
+      type: 'like',
+    }).countDocuments()
+    const is_liked = await Reaction.findOne({
+      user_id: req.user._id,
+      post_id: post._id,
+      type: 'like',
+    })
+    const cmt_count = await Comment.find({
+      post_id: post._id,
+    }).countDocuments()
+    res.send({
+      status_code: 200,
+      data: {
+        _id: post._id,
+        user_id: post.user_id._id,
+        full_name: post.user_id.first_name + ' ' + post.user_id.last_name,
+        avatar: post.user_id.avatar,
+        content: post.content,
+        image: post.image,
+        created_at: post.created_at,
+        destination_id: post.travel_destination._id,
+        travel_destination: post.travel_destination.travel_destination,
+        likes_count: likes_count,
+        comments_count: cmt_count,
+        is_liked: is_liked ? true : false,
+        privacy: post.privacy,
+      },
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
 module.exports = {
   createPost,
   updatePrivacyPost,
@@ -396,4 +442,5 @@ module.exports = {
   getPostsByUser,
   getPostsByDestinationId,
   getPosts,
+  getPost,
 }
