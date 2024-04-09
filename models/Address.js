@@ -1,3 +1,4 @@
+const { verify } = require('jsonwebtoken')
 const mongoose = require('mongoose')
 
 const AddressSchema = new mongoose.Schema({
@@ -30,6 +31,10 @@ const AddressSchema = new mongoose.Schema({
   report: {
     type: Number,
     required: false,
+  },
+  verify: {
+    type: Boolean,
+    default: false,
   },
 })
 
