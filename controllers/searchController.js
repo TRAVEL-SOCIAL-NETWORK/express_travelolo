@@ -117,6 +117,8 @@ const searchPost = async (req, res) => {
           },
         },
       ],
+
+      privacy: 'public',
     })
       .populate('user_id')
       .populate('travel_destination')

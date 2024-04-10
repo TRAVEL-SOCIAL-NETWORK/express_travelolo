@@ -1,8 +1,10 @@
-const City = require("../models/City")
+const City = require('../models/City')
 
 const getCity = async (req, res) => {
   try {
-    const cities = await City.find().exec()
+    const cities = await City.find({
+      verify: true,
+    }).exec()
     res.send({
       status_code: 200,
       message: 'Get cities successfully',
