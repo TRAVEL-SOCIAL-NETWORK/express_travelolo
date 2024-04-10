@@ -15,6 +15,8 @@ const userRoutes = require('./routes/userRoutes')
 const reactionRoutes = require('./routes/reactionRoutes')
 const searchRoutes = require('./routes/searchRoutes')
 const notifyRoutes = require('./routes/notifyRoutes')
+const adminRoutes = require('./routes/adminRoutes')
+const authAdminRoutes = require('./routes/authAdminRoutes')
 
 dotenv.config()
 
@@ -56,6 +58,8 @@ app.get('/', (req, res) => {
   res.send('Hello, Express!')
 })
 app.use('/api/auth', authRoutes)
+app.use('/api/auth/admin', authAdminRoutes)
+app.use('/api/admin', adminRoutes)
 app.use('/api/friendship', friendshipRoutes)
 app.use('/api', postRoutes)
 app.use('/api', commentRoutes)
