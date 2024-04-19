@@ -22,7 +22,7 @@ const PostSchema = new mongoose.Schema({
     type: String,
     required: true,
     default: 'public',
-    values: ['public', 'private'],
+    values: ['public', 'private', 'friend'],
   },
   report: {
     type: Number,
@@ -33,6 +33,15 @@ const PostSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Address',
     required: false,
+  },
+  verify: {
+    type: Boolean,
+    default: false,
+  },
+  score: {
+    type: Number,
+    required: false,
+    default: 0,
   },
 })
 

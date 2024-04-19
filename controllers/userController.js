@@ -90,6 +90,9 @@ const getProfile = async (req, res) => {
       status_code: 200,
       message: 'User fetched successfully',
       data: {
+        id: user._id,
+        full_name: user.first_name + ' ' + user.last_name,
+        avatar: user.avatar,
         work: user.work,
         study: user.study,
         hobby: user.hobby,
@@ -145,6 +148,8 @@ const updateProfile = async (req, res) => {
         return res.status(400).json({ message: 'Upload background failed' })
       }
     }
+    console.log(avatarUrl)
+    console.log(backgroundUrl)
     if (avatarUrl === '' && backgroundUrl === '') {
       const userUpdate = await User.findOneAndUpdate(
         {
@@ -164,26 +169,149 @@ const updateProfile = async (req, res) => {
         message: 'Profile updated successfully',
         data: userUpdate,
       })
+    } else if (avatarUrl === '' && backgroundUrl !== '') {
+      const userUpdate = await User.findOneAndUpdate(
+        {
+          _id: userId,
+        },
+        {
+          work,
+          study,
+          hobby,
+          location,
+          hometown,
+          background: backgroundUrl,
+        },
+        { new: true }
+      )
+      return res.send({
+        status_code: 200,
+        message: 'Profile updated successfully',
+        data: userUpdate,
+      })
+    } else if (avatarUrl !== '' && backgroundUrl === '') {
+      const userUpdate = await User.findOneAndUpdate(
+        {
+          _id: userId,
+        },
+        {
+          work,
+          study,
+          hobby,
+          location,
+          hometown,
+          avatar: avatarUrl,
+        },
+        { new: true }
+      )
+      return res.send({
+        status_code: 200,
+        message: 'Profile updated successfully',
+        data: userUpdate,
+      })
+    } else if (avatarUrl !== '' && backgroundUrl !== '') {
+      const userUpdate = await User.findOneAndUpdate(
+        {
+          _id: userId,
+        },
+        {
+          work,
+          study,
+          hobby,
+          location,
+          hometown,
+          avatar: avatarUrl,
+          background: backgroundUrl,
+        },
+        { new: true }
+      )
+      res.send({
+        status_code: 200,
+        message: 'Profile updated successfully',
+        data: userUpdate,
+      })
     }
-    const userUpdate = await User.findOneAndUpdate(
-      {
-        _id: userId,
-      },
-      {
-        work,
-        study,
-        hobby,
-        location,
-        hometown,
-        avatar: avatarUrl,
-        background: backgroundUrl,
-      },
-      { new: true }
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
+const getProfileUser = async (req, res) => {
+  try {
+    const userId = req.params.user_id
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(400).send('User not found')
+    }
+    const friends = await Friendship.find({
+      $or: [
+        {
+          user_id: userId,
+        },
+        {
+          friend_id: userId,
+        },
+      ],
+      status: 'accepted',
+    }).countDocuments()
+    const friends_top6 = await Friendship.find({
+      $or: [
+        {
+          user_id: userId,
+        },
+        {
+          friend_id: userId,
+        },
+      ],
+      status: 'accepted',
+    })
+      .sort({ created_at: -1 })
+      .limit(6)
+    const friends_new = await Promise.all(
+      friends_top6.map(async (friend) => {
+        const user = await User.findById(
+          friend.user_id == userId ? friend.friend_id : friend.user_id
+        ).exec()
+        return {
+          id: user._id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          avatar: user.avatar,
+        }
+      })
     )
+    const statusFriend = await Friendship.findOne({
+      $or: [
+        {
+          user_id: userId,
+          friend_id: req.user._id,
+        },
+        {
+          user_id: req.user._id,
+          friend_id: userId,
+        },
+      ],
+    })
+      .select('status')
+      .exec()
     res.send({
       status_code: 200,
-      message: 'Profile updated successfully',
-      data: userUpdate,
+      message: 'User fetched successfully',
+      data: {
+        id: user._id,
+        full_name: user.first_name + ' ' + user.last_name,
+        avatar: user.avatar,
+        work: user.work,
+        study: user.study,
+        hobby: user.hobby,
+        location: user.location,
+        hometown: user.hometown,
+        background: user.background,
+        joined_at: user.created_at,
+        friends_count: friends,
+        friends_new: friends_new,
+        is_friend: statusFriend ? statusFriend.status : 'none',
+      },
     })
   } catch (err) {
     res.status(400).send(err)
@@ -194,4 +322,5 @@ module.exports = {
   getInfo,
   getProfile,
   updateProfile,
+  getProfileUser,
 }

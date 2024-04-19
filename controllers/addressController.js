@@ -3,6 +3,8 @@ const City = require('../models/City')
 const User = require('../models/User')
 const cloudinary = require('../configs/cloudinaryConfig')
 const fs = require('fs')
+const Favorite = require('../models/Favorite')
+const Post = require('../models/Post')
 
 const createTravelDestination = async (req, res) => {
   try {
@@ -33,6 +35,12 @@ const createTravelDestination = async (req, res) => {
       description,
       created_by: userId,
     })
+
+    City.findOneAndUpdate(
+      { _id: city_id },
+      { $inc: { score: 10 } },
+      { new: true }
+    ).exec()
 
     res.send({
       status_code: 200,
@@ -90,6 +98,7 @@ const createCityTravelDestination = async (req, res) => {
       name,
       country,
       avatar: imageCityUrl,
+      score: 10,
     })
     const travelDestination = await Address.create({
       city: city._id,
@@ -165,27 +174,40 @@ const getDestinationCity = async (req, res) => {
       city: req.params.city_id,
       verify: true,
     })
+      .populate('city created_by')
       .skip(skip)
       .limit(limit)
+      .sort({ score: -1, created_at: -1 })
       .exec()
     const travelDestinations = await Promise.all(
       listDestinations.map(async (destination) => {
-        const user = await User.findById(destination.created_by).exec()
-        const city = await City.findById(destination.city).exec()
+        const likes_count = await Favorite.countDocuments({
+          destination_id: destination._id,
+        }).exec()
+        const tags_count = await Post.countDocuments({
+          travel_destination: destination._id,
+        }).exec()
+        const is_liked = await Favorite.findOne({
+          user_id: req.user._id,
+          destination_id: destination._id,
+        }).exec()
         return {
           id: destination._id,
-          destination: destination.travel_destination,
-          city: city.name,
-          city_id: city._id,
-          image: destination.image,
+          travel_destination: destination.travel_destination,
           description: destination.description,
+          city: destination.city.name,
+          city_id: destination.city._id,
+          image: destination.image,
           created_at: destination.created_at,
-          author: {
-            id: user._id,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            avatar: user.avatar,
-          },
+          likes_count,
+          tags_count,
+          is_liked: is_liked ? true : false,
+          user_id: destination.created_by._id,
+          full_name:
+            destination.created_by.first_name +
+            ' ' +
+            destination.created_by.last_name,
+          avatar: destination.created_by.avatar,
         }
       })
     )
@@ -204,28 +226,39 @@ const getDestination = async (req, res) => {
     const skip = (page - 1) * limit
     const listDestinations = await Address.find({ verify: true })
       .populate('city created_by')
-      .sort({ created_at: -1 })
+      .sort({ score: -1, created_at: -1 })
       .skip(skip)
       .limit(limit)
       .exec()
     const travelDestinations = await Promise.all(
       listDestinations.map(async (destination) => {
-        const user = await User.findById(destination.created_by).exec()
-        const city = await City.findById(destination.city).exec()
+        const likes_count = await Favorite.countDocuments({
+          destination_id: destination._id,
+        }).exec()
+        const tags_count = await Post.countDocuments({
+          travel_destination: destination._id,
+        }).exec()
+        const is_liked = await Favorite.findOne({
+          user_id: req.user._id,
+          destination_id: destination._id,
+        }).exec()
         return {
           id: destination._id,
-          destination: destination.travel_destination,
-          city: city.name,
-          city_id: city._id,
-          image: destination.image,
+          travel_destination: destination.travel_destination,
           description: destination.description,
+          city: destination.city.name,
+          city_id: destination.city._id,
+          image: destination.image,
           created_at: destination.created_at,
-          author: {
-            id: user._id,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            avatar: user.avatar,
-          },
+          likes_count,
+          tags_count,
+          is_liked: is_liked ? true : false,
+          user_id: destination.created_by._id,
+          full_name:
+            destination.created_by.first_name +
+            ' ' +
+            destination.created_by.last_name,
+          avatar: destination.created_by.avatar,
         }
       })
     )
@@ -242,6 +275,7 @@ const getListDestination = async (req, res) => {
   try {
     const listDestinations = await Address.find({ city: req.params.city_id })
       .select('id travel_destination')
+      .sort({ score: -1, created_at: -1 })
       .exec()
     res.send({
       status_code: 200,
@@ -259,7 +293,7 @@ const reportTravelDestination = async (req, res) => {
         _id: req.params.id,
       },
       {
-        $inc: { report: 1 },
+        $inc: { report: 1, score: -5 },
       },
       { new: true }
     ).exec()

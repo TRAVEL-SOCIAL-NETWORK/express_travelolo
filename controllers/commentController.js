@@ -21,6 +21,12 @@ const createComment = async (req, res) => {
         parent_comment,
       })
       await comment.save()
+      Post.findOneAndUpdate(
+        { _id: post_id },
+        { $inc: { score: 1 } },
+        { new: true }
+      ).exec()
+
       // Gửi thông báo socket đến chủ bài viết
       const author_post = await Post.findOne({ _id: post_id }).select('user_id')
       if (author_post.user_id.toString() !== userId.toString()) {
@@ -50,6 +56,11 @@ const createComment = async (req, res) => {
         content,
       })
       await comment.save()
+      Post.findOneAndUpdate(
+        { _id: post_id },
+        { $inc: { score: 1 } },
+        { new: true }
+      ).exec()
       // Gửi thông báo socket đến chủ bài viết
       const author_post = await Post.findOne({ _id: post_id }).select('user_id')
       if (author_post.user_id.toString() !== userId.toString()) {
@@ -187,6 +198,11 @@ const getReplies = async (req, res) => {
       .limit(limit)
       .skip(skip)
       .exec()
+    Post.findOneAndUpdate(
+      { _id: req.params.post_id },
+      { $inc: { score: 1 } },
+      { new: true }
+    ).exec()
     res.send({
       status_code: 200,
       data: replies,

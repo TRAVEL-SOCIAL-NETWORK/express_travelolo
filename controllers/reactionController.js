@@ -1,3 +1,4 @@
+const Post = require('../models/Post')
 const Reaction = require('../models/Reaction')
 
 const createReaction = async (req, res) => {
@@ -17,6 +18,11 @@ const createReaction = async (req, res) => {
       post_id,
       type: 'like',
     })
+    Post.findOneAndUpdate(
+      { _id: post_id },
+      { $inc: { score: 5 } },
+      { new: true }
+    ).exec()
     res.send({
       status_code: 200,
       message: 'Reaction created successfully',
@@ -38,6 +44,11 @@ const cancelReaction = async (req, res) => {
     if (!reaction) {
       return res.status(400).send('Reaction not found')
     }
+    Post.findOneAndUpdate(
+      { _id: post_id },
+      { $inc: { score: -5 } },
+      { new: true }
+    ).exec()
     res.send({
       status_code: 200,
       message: 'Reaction canceled successfully',

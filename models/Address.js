@@ -36,6 +36,11 @@ const AddressSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  score: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
 })
 
 module.exports = mongoose.model('Address', AddressSchema)

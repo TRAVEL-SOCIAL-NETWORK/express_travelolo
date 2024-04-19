@@ -6,6 +6,7 @@ const {
   getInfo,
   getProfile,
   updateProfile,
+  getProfileUser,
 } = require('../controllers/userController')
 
 const router = express.Router()
@@ -15,6 +16,7 @@ const upload = multer({ storage: storage })
 router.use(auth)
 router.get('/info', getInfo)
 router.get('/profile', getProfile)
+router.get('/profile/:user_id', getProfileUser)
 router.post(
   '/update',
   upload.fields([

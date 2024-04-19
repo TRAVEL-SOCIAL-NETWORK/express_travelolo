@@ -10,11 +10,11 @@ const searchDestination = async (req, res) => {
     const { keyword } = req.query
     const destinations = await Address.find({
       $or: [
-        { travel_destination: { $regex: keyword, $options: 'i' } },
+        { travel_destination: { $regex: keyword.trim(), $options: 'i' } },
         {
           city: {
             $in: await City.find({
-              name: { $regex: keyword, $options: 'i' },
+              name: { $regex: keyword.trim(), $options: 'i' },
             }).select('_id'),
           },
         },
@@ -56,11 +56,20 @@ const searchDestination = async (req, res) => {
 const searchPeople = async (req, res) => {
   try {
     const { keyword } = req.query
+    // Tách chữ cuối cùng trong từ khoá để lấy last name
+    const lastIndex = keyword.lastIndexOf(' ')
+    let firstName = keyword.slice(0, lastIndex).trim()
+    let lastName = keyword.slice(lastIndex + 1).trim()
+
+    if (lastIndex === -1) {
+      // Nếu không có khoảng trắng thì lấy toàn bộ làm first name
+      firstName = keyword.trim()
+      lastName = keyword.trim()
+    }
+    // Tìm kiếm theo first name và last name
     const users = await User.find({
-      $or: [
-        { first_name: { $regex: keyword, $options: 'i' } },
-        { last_name: { $regex: keyword, $options: 'i' } },
-      ],
+      first_name: { $regex: firstName, $options: 'i' },
+      last_name: { $regex: lastName, $options: 'i' },
     })
       .limit(5)
       .exec()
@@ -89,16 +98,18 @@ const searchPost = async (req, res) => {
     const skip = (page - 1) * limit
     const posts = await Post.find({
       $or: [
-        { content: { $regex: keyword, $options: 'i' } },
+        { content: { $regex: keyword.trim(), $options: 'i' } },
         {
           travel_destination: {
             $in: await Address.find({
               $or: [
-                { travel_destination: { $regex: keyword, $options: 'i' } },
+                {
+                  travel_destination: { $regex: keyword.trim(), $options: 'i' },
+                },
                 {
                   city: {
                     $in: await City.find({
-                      name: { $regex: keyword, $options: 'i' },
+                      name: { $regex: keyword.trim(), $options: 'i' },
                     }).select('_id'),
                   },
                 },
@@ -110,8 +121,8 @@ const searchPost = async (req, res) => {
           user_id: {
             $in: await User.find({
               $or: [
-                { first_name: { $regex: keyword, $options: 'i' } },
-                { last_name: { $regex: keyword, $options: 'i' } },
+                { first_name: { $regex: keyword.trim(), $options: 'i' } },
+                { last_name: { $regex: keyword.trim(), $options: 'i' } },
               ],
             }).select('_id'),
           },

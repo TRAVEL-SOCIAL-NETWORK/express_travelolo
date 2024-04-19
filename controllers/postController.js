@@ -3,6 +3,8 @@ const cloudinary = require('../configs/cloudinaryConfig')
 const fs = require('fs')
 const Reaction = require('../models/Reaction')
 const Comment = require('../models/Comment')
+const { report } = require('process')
+const Friendship = require('../models/Friendship')
 
 const createPost = async (req, res) => {
   try {
@@ -27,6 +29,21 @@ const createPost = async (req, res) => {
       }
     }
     // Tạo bài đăng và lưu vào cơ sở dữ liệu
+    if (privacy === 'private') {
+      const post = await Post.create({
+        user_id: userId,
+        content,
+        image: imageUrl, // Lưu đường dẫn của ảnh vào trường image
+        travel_destination: destination_id,
+        privacy,
+        verify: true,
+      })
+      res.send({
+        status_code: 200,
+        message: 'Post created successfully',
+        data: post,
+      })
+    }
     const post = await Post.create({
       user_id: userId,
       content,
@@ -53,6 +70,7 @@ const updatePrivacyPost = async (req, res) => {
       {
         user_id: userId,
         _id: req.params.post_id,
+        verify: true,
       },
       {
         privacy,
@@ -115,6 +133,10 @@ const reportPost = async (req, res) => {
       post.report = 0
     }
     post.report += 1
+    if (post.score === undefined) {
+      post.score = 0
+    }
+    post.score -= 5
     await post.save()
     res.send({
       status_code: 200,
@@ -156,7 +178,7 @@ const getPostsByUserId = async (req, res) => {
     })
       .populate('user_id')
       .populate('travel_destination')
-      .sort({ created_at: -1 })
+      .sort({ created_at: -1, score: -1 })
       .skip(skip)
       .limit(limit)
       .exec()
@@ -209,6 +231,8 @@ const getPostsByUser = async (req, res) => {
         ? 'public'
         : req.query.privacy === 'private'
         ? 'private'
+        : req.query.privacy === 'private'
+        ? 'friend'
         : ''
     const oldest = req.query.oldest === 'true' ? 1 : -1
     const limit = 5
@@ -220,17 +244,18 @@ const getPostsByUser = async (req, res) => {
       })
         .populate('user_id')
         .populate('travel_destination')
-        .sort({ created_at: oldest })
+        .sort({ created_at: oldest, score: -1 })
         .skip(skip)
         .limit(limit)
         .exec()
     } else {
       posts = await Post.find({
         user_id: userId,
+        privacy: privacy,
       })
         .populate('user_id')
         .populate('travel_destination')
-        .sort({ created_at: oldest })
+        .sort({ created_at: oldest, score: -1 })
         .skip(skip)
         .limit(limit)
         .exec()
@@ -287,7 +312,7 @@ const getPostsByDestinationId = async (req, res) => {
     })
       .populate('user_id')
       .populate('travel_destination')
-      .sort({ created_at: -1 })
+      .sort({ created_at: -1, score: -1 })
       .skip(skip)
       .limit(limit)
       .exec()
@@ -336,12 +361,41 @@ const getPosts = async (req, res) => {
     const page = req.query.page ? parseInt(req.query.page) : 1
     const limit = 5
     const skip = (page - 1) * limit
+    const friendships = await Friendship.find({
+      $or: [
+        {
+          user_id: req.user._id,
+        },
+        {
+          friend_id: req.user._id,
+        },
+      ],
+      status: 'accepted',
+    }).exec()
+    const friendIds = friendships.map((friendship) => {
+      return friendship.user_id.toString() === req.user._id.toString()
+        ? friendship.friend_id
+        : friendship.user_id
+    })
+
     const posts = await Post.find({
-      privacy: 'public',
+      $or: [
+        {
+          privacy: 'public',
+          verify: true,
+        },
+        {
+          user_id: {
+            $in: friendIds,
+          },
+          privacy: 'friend',
+          verify: true,
+        },
+      ],
     })
       .populate('user_id')
       .populate('travel_destination')
-      .sort({ created_at: -1 })
+      .sort({ score: -1, created_at: -1, report: -1 })
       .skip(skip)
       .limit(limit)
       .exec()
@@ -432,6 +486,85 @@ const getPost = async (req, res) => {
   }
 }
 
+const getPostsByAdmin = async (req, res) => {
+  try {
+    const page = req.query.page ? parseInt(req.query.page) : 1
+    const limit = 5
+    const skip = (page - 1) * limit
+    const posts = await Post.find({
+      verify: false,
+    })
+      .populate('user_id')
+      .populate('travel_destination')
+      .sort({ created_at: -1, score: -1, report: -1 })
+      .skip(skip)
+      .limit(limit)
+      .exec()
+    const destination_posts = await Promise.all(
+      posts.map(async (post) => {
+        const likes_count = await Reaction.find({
+          post_id: post._id,
+          type: 'like',
+        }).countDocuments()
+
+        const is_liked = await Reaction.findOne({
+          user_id: req.user._id,
+          post_id: post._id,
+          type: 'like',
+        })
+        const cmt_count = await Comment.find({
+          post_id: post._id,
+        }).countDocuments()
+        return {
+          _id: post._id,
+          user_id: post.user_id._id,
+          full_name: post.user_id.first_name + ' ' + post.user_id.last_name,
+          avatar: post.user_id.avatar,
+          content: post.content,
+          image: post.image,
+          created_at: post.created_at,
+          destination_id: post.travel_destination._id,
+          travel_destination: post.travel_destination.travel_destination,
+          likes_count: likes_count,
+          comments_count: cmt_count,
+          is_liked: is_liked ? true : false,
+          privacy: post.privacy,
+          verify: post.verify,
+        }
+      })
+    )
+    res.send({
+      status_code: 200,
+      data: destination_posts,
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
+const verifyPost = async (req, res) => {
+  try {
+    const post = await Post.findOneAndUpdate(
+      {
+        _id: req.params.post_id,
+      },
+      {
+        verify: true,
+      },
+      { new: true }
+    )
+    if (!post) {
+      return res.status(400).send('Post not found')
+    }
+    res.send({
+      status_code: 200,
+      message: 'Post verified successfully',
+    })
+  } catch (err) {
+    res.status(400).send(err)
+  }
+}
+
 module.exports = {
   createPost,
   updatePrivacyPost,
@@ -443,4 +576,6 @@ module.exports = {
   getPostsByDestinationId,
   getPosts,
   getPost,
+  getPostsByAdmin,
+  verifyPost,
 }
