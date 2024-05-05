@@ -103,6 +103,7 @@ const register = async (req, res) => {
       password: hashedPassword,
       first_name,
       last_name,
+      status: 'active',
     })
     await newUser.save()
     res.send({

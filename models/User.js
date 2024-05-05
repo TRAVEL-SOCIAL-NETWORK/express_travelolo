@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    default: 'inactive',
+    default: 'active',
     values: ['active', 'inactive', 'banned'],
   },
   first_name: {
